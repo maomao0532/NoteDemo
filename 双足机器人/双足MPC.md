@@ -229,6 +229,8 @@ s_2s_3n_x-s_3c_2n_y+c_3n_z & s_2s_3o_x-s_3c_2o_y+c_3o_z & s_2s_3a_x-s_3c_2a_y+c_
 \end{align*}
 $$
 
+其中$c_2=cos(q_2)$
+
 根据上两个矩阵第二行相等可得方程组：
 $$
 \begin{align}
@@ -260,10 +262,71 @@ $$
 q_3 = atan2(s_3, c_3)
 $$
 
+将$q_2,q_3$回代上面的“四元”方程组中，求出$c_7,s_7$，可得$q_7$：
+$$
+q_7 = atan2(s_7, c_7)
+$$
+下面考虑$\sideset{^3}{_6}T=\sideset{^3}{_7}T(\sideset{^6}{_7}T)^{-1}$，由于$q_2,q_3,q_7$已经求得，故$\sideset{^3}{_7}T,(\sideset{^6}{_7}T)^{-1}$均已知，则$\sideset{^3}{_6}T$已知：
+$$
+\begin{align}
+\sideset{^3}{_6}T
+&=
+\begin{bmatrix}  
+  cos(q_4+q_5+q_6) & 0 & sin(q_4+q_5+q_6) & sin(q_4+q_5)z_6+sin(q_4)z_5 \\
+  0 & 1 & 0 & y_4+y_5+y_6 \\
+  -sin(q_4+q_5+q_6) & 0 & cos(q_4+q_5+q_6) & cos(q_4+q_5)z_6+cos(q_4)z_5+z_4\\
+  0 & 0 & 0 & 1 
+\end{bmatrix}\\
+&=
+\begin{bmatrix}  
+  A & O & B & D \\
+   &  &  & E \\
+   &  &  & F\\
+  0 & 0 & 0 & 1 
+\end{bmatrix}
+\end{align}
+$$
+比较对应位置，构建方程组：
+$$
+\begin{align}
+\left\{\begin{matrix} 
+ sin(q_4+q_5)z_6+sin(q_4)z_5 &=& D \\
+ cos(q_4+q_5)z_6+cos(q_4)z_5 &=& G &=& F-z_4
+\end{matrix}\right. 
+\end{align}
+$$
+可以看出：
+$$
+D^2+G^2=z_6^2+z_5^2+2z_6z_5sin(q_4+q_5)sin(q_4)+2z_6z_5cos(q_4+q_5)cos(q_4)\\
 
+D^2+G^2-z_6^2-z_5^2=2z_6z_5cos(q_4+q_5-q_4)=2z_6z_5cos(q_5)\\
 
-
--   
+q_5=acos(\frac{D^2+G^2-z_6^2-z_5^2}{2z_6z_5})
+$$
+$acos$的返回值是$[0,\pi)$，恰好在$q_5$限制的范围内，刚好唯一解。
+$$
+\left.\begin{matrix} 
+  [cos(q_5)z_6+z_5]sin(q_4)+sin(q_5)cos(q_4)z_6 = D\\ 
+  [cos(q_5)z_6+z_5]cos(q_4)+sin(q_5)sin(q_4)z_6 = G 
+\end{matrix}\right\}\Rightarrow 
+\left\{\begin{matrix} 
+  sin(q_4)\\
+  cos(q_4)
+\end{matrix}\right.
+\Rightarrow
+q_4=atan[sin(q_4),cos(q_4)]
+$$
+最后解得$q_6$：
+$$
+\left.\begin{matrix} 
+  cos(q_4+q_5+q_6)=A\\ 
+  sin(q_4+q_5+q_6)=B 
+\end{matrix}\right\}\Rightarrow 
+q_4+q_5+q_6
+\Rightarrow
+q_6
+$$
+此逆运动学恰好有唯一解，为确保也可通过正运动学再进行验证。
 
 ## 2. 动力学建模
 
