@@ -330,7 +330,161 @@ $$
 
 ## 2. 动力学建模
 
+<img src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image-20231221210631965.png" alt="image-20231221210631965" style="zoom:20%;" />
 
+上图为创建的动力学模型：假设质量集中在上半身，两腿为轻杆，线接触，地面反作用力（矩）集中在一个作用点处，受$F_x,F_y,F_z,M_y,M_z$，且$M_x=0$。
+
+设机器人加速度（质心）加速度为$\ddot{\vec{p_c}}$，质心角动量变化率为$\dot{\vec{H_c}}=I_c\cdot\dot{\vec{w_c}}$，接触力为$u=[\vec{F_1},\vec{F_2},\vec{M_1},\vec{M_2}]^T$，其中$\vec{F_i}=[F_{ix},F_{iy},F_{iz}]^T,M_i=[M_{ix},M_{iy},M_{iz}]^T$，1表示右腿，2表示左腿，由牛二有：
+$$
+\begin{bmatrix}  
+  D_1 \\
+  D_2 \\
+\end{bmatrix}u
+=
+\begin{bmatrix}
+m(\ddot{p_c}+g) \\
+\dot{\vec{H}}
+\end{bmatrix}
+$$
+其中：
+$$
+D_1=
+\begin{bmatrix}
+I_{3\times3} & I_{3\times3} & 0_{3\times3} & 0_{3\times3}  
+\end{bmatrix}\\
+D_2=
+\begin{bmatrix}
+(\vec{p_1}-\vec{p_c})\times & (\vec{p_2}-\vec{p_c})\times & I_{3\times3} & I_{3\times3}
+\end{bmatrix}
+$$
+具体解释为：
+$$
+D_1u=\vec{F_1}+\vec{F_2}=
+\begin{bmatrix}
+F_{1x}+F_{2x} \\
+F_{1y}+F_{2y} \\
+F_{1z}+F_{2z}
+\end{bmatrix}
+=
+m(\ddot{p_c}+g)
+=
+\begin{bmatrix}
+m\ddot{x} \\
+m\ddot{y} \\
+m(\ddot{z}+g)
+\end{bmatrix}
+$$
+
+$$
+\begin{align}
+D_2u
+&=
+(\vec{p_1}-\vec{p_c})\times\vec{F_1}+(\vec{p_2}-\vec{p_c})\times\vec{F_2}+
+L\cdot\vec{M_1}+L\cdot\vec{M_2}\\
+&=
+\begin{bmatrix}
+M_{F_1x}+M_{F_2x}+M_{1x}+M_{2x} \\
+M_{F_1y}+M_{F_2y}+M_{1y}+M_{2y} \\
+M_{F_1z}+M_{F_2z}+M_{1z}+M_{2z}
+\end{bmatrix}
+=
+I_c\cdot\dot{\vec{w_c}}
+=
+\begin{bmatrix}
+I_{xx}w_x+I_{xy}w_y+I_{xz}w_z \\
+I_{yx}w_x+I_{yy}w_y+I_{yz}w_z \\
+I_{zx}w_x+I_{zy}w_y+I_{zz}w_z
+\end{bmatrix}
+\end{align}
+$$
+
+设欧拉角RPY为$\phi,\theta,\psi$，则欧拉角速度和角速度关系为：（均在全局坐标系$\sum W$下）
+$$
+\dot{\Theta}=
+\begin{bmatrix}
+\dot{\phi} \\
+\dot{\theta} \\
+\dot{\psi}
+\end{bmatrix}
+=
+\begin{bmatrix}
+cos\psi/cos\theta & sin\psi/cos\theta & 0 \\
+-sin\psi & cos\psi & 0 \\
+sin\theta cos\psi/cos\theta & sin\theta sin\psi/cos\theta & 1
+\end{bmatrix}
+\begin{bmatrix}
+w_{ox} \\
+w_{oy} \\
+w_{oz}
+\end{bmatrix}
+=
+R_zw
+$$
+**上式补充证明如下：**
+
+设欧拉角为$\phi(t),\theta(t),\psi(t)$，旋转矩阵为$R(\phi(t),\theta(t),\psi(t))$。
+一刚体上一点坐标为$x_o(t)$，有$x_o(0)=x_0$，则有$x_o(t)=R(t)x_0$（仅转动）：
+$$
+v_o(t)=\frac{dx_o(t)}{dt}=
+\frac{dR}{dt}x_0+R\frac{dx}{dt}=\frac{dR}{dt}x_0
+$$
+进而，该点角速度有：
+$$
+v_o(t)=w_o(t)\times x_o(t)=\Omega_ox_o(t)=\Omega_0R(t)x_0
+,其中
+\Omega_0=
+\begin{bmatrix}
+0 & -w_{oz} & w_{oy} \\
+w_{oz} & 0 & -w_{ox} \\
+-w_{oy} & w_{ox} & 0
+\end{bmatrix}
+$$
+故有$\Omega_0R(t)=\frac{dR}{dt}$。
+
+综上，构建状态空间方程：
+$$
+\frac{d}{dt}
+\begin{bmatrix}
+\Theta \\
+p_c\\
+w\\
+\dot{p_c}
+\end{bmatrix}
+=
+A
+\begin{bmatrix}
+\Theta \\
+p_c\\
+w\\
+\dot{p_c}
+\end{bmatrix}
++Bu
++
+\begin{bmatrix}
+0\\
+0\\
+0\\
+g
+\end{bmatrix}
+\\
+A=
+\begin{bmatrix}
+0_{3\times3} & 0_{3\times3} & R_z & 0_{3\times3} \\
+0_{3\times3} & 0_{3\times3} & 0_{3\times3} & I_{3\times3} \\
+0_{3\times3} & 0_{3\times3} & 0_{3\times3} & 0_{3\times3} \\
+0_{3\times3} & 0_{3\times3} & 0_{3\times3} & 0_{3\times3}
+\end{bmatrix},
+B=
+\begin{bmatrix}
+0_{3\times3} & 0_{3\times3} & 0_{3\times3} & 0_{3\times3} \\
+0_{3\times3} & 0_{3\times3} & 0_{3\times3} & 0_{3\times3} \\
+{I_G}^{-1}(\vec{p_1}-\vec{p_c})\times & {I_G}^{-1}(\vec{p_2}-\vec{p_c})\times & {I_G}^{-1} & {I_G}^{-1} \\
+I_{3\times3}/m & I_{3\times3}/m & 0_{3\times3} & 0_{3\times3}
+\end{bmatrix}
+$$
+其中$I_G$为$\sum W$中body相对于质心，轴为$\sum W$轴的转动惯量矩阵，可使用$I_G=R_zI_bR_z^T$求得，其中，$I_b$为body相对自身固连质心坐标系的转动惯量（定值）。
+
+为将状态空间线性化
 
 
 
@@ -371,8 +525,6 @@ $$
 **步频$0.6s$，速度$0.5m/s$：**
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.5.mp4" preload="none" >
-
-后退$0.2m/s$效果：
+**后退$0.2m/s$效果：**
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.2.mp4" preload="none" >
-
