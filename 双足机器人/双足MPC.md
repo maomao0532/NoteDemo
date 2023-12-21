@@ -347,4 +347,32 @@ $$
 问题1：MPC控制足端单脚支撑时，支撑腿的yaw角会发生转动。
 ~~解决：PD切换时，存在PD和MPC作用在同一支脚上？？~~
 解决：在一只脚抬到一半时，MPC会在hip_yaw产生较大的力矩？？不是较大，是有个==突变==。
-突变原因：MPC计算时间太长；~~订阅的关节角度不连续，导致雅可比的突变~~
+突变原因：==MPC计算时间太长==；~~订阅的关节角度不连续，导致雅可比的突变~~
+
+### 2023.12.21
+
+问题1：MPC控制足端单脚支撑时，支撑腿的yaw角会发生转动。
+解决：==MPC计算时间太长，通过降低gazebo仿真速率，可解决问题==，上限速度$0.5m/s$==暂时==，可以通过提高踏脚频率，提高速度，最终上限未测。
+
+<img src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/image-20231221200641155.png" alt="image-20231221200641155" style="zoom:33%;" />
+
+问题2：转向能力欠缺，无法按照给定角速度转弯。
+原因：期望速度是在世界坐标系下的（==尚未修改==），但单独给角速度也无法实现期望速度。
+
+**踏步效果：**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move.mp4" preload="none" >
+
+
+**步频$0.7s$，速度$0.3m/s$：**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.3.mp4" preload="none" >
+
+**步频$0.6s$，速度$0.5m/s$：**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.5.mp4" preload="none" >
+
+后退$0.2m/s$效果：
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.2.mp4" preload="none" >
+
