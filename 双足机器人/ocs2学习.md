@@ -225,7 +225,7 @@ ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state, const 				
 3.  /multiplot_remap：绘图节点
 4.  /robot_state_publisher：订阅/joint_states信息，将其转换成/tf，发布给/Cartpole（rviz可视化)
 
-### 4. 四足机器人案例
+## 4. 四足机器人案例
 
 ### 4.1 动力学建模
 
@@ -254,4 +254,179 @@ $$
 $$
 其中$A(q)$在参考文献中有详细说明，总之，是和$q_b,q_j$相关。
 
-$\boldsymbol{q}_{b},\boldsymbol{q}_{j}$分别为baselink在**世界坐标系下**的位姿$\begin{aligned}\boldsymbol{q}_b=(\boldsymbol{r}_{IB},\boldsymbol{\Phi}_{IB}^{zyx})\end{aligned}$，各关节角度
+$\boldsymbol{q}_{b},\boldsymbol{q}_{j}$分别为baselink在**世界坐标系下**的位姿$\begin{aligned}\boldsymbol{q}_b=(\boldsymbol{r}_{IB},\boldsymbol{\Phi}_{IB}^{zyx})\end{aligned}$，各关节角度。
+
+**约束**
+
+
+
+### 4.2 ocs2_legged_robot分析
+
+#### 4.2.1 config
+
+-   **command**
+
+    -   **gait.info**
+
+    存放**步态列表**，和各步态的**ModeSequenceTemplate**（模式序列模板）
+
+    <img src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/image-20240105141001233.png" alt="image-20240105141001233" style="zoom:50%;" />
+
+    <img src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/image-20240105141120316.png" alt="image-20240105141120316" style="zoom:50%;" />
+
+    trot：步态名称；modeSequence：模式序列；switchingTimes：模式切换时间；给了一个周期的相关信息。
+
+    -   **reference.info**
+
+    存放默认（初始）关节角度**defaultJointState**；初始模式序列**initialModeSchedule**（实际使用中会将其根据模板扩展成全时间序列）；默认模式序列模板**defaultModeSequenceTemplate**；目标速度和目标角速度**targetDisplacementVelocity**、**targetRotationVelocity**。
+
+-   **mpc**
+
+    -   **task.info**
+
+    存放质心模型类型选择**centroidalModelType**、机器人接口参数（是否打印相关参数信息；是否使用分析梯度动力学、约束）**legged_robot_interface**、模型设置参数（位置误差增益、步态切换时中间STANCE持续时间。。）**model_settings**、游脚轨迹设置参数（抬腿速度、落脚速度、游脚高度、游脚持续时间）**swing_trajectory_config**、SQP求解参数设置**sqp**、IPM求解参数设置**ipm**、DDP求解设置**ddp**、动力学求解器相关设置**rollout**、mpc问题相关设置**mpc**、初始状态（质心六维动量、质心位姿、各关节角度）**initialState**、状态量、控制量权重矩阵**Q、R**、摩擦锥（松弛）参数设置（摩擦系数、松弛系数）**frictionConeSoftConstraint**。
+
+-   **multiplot**：绘图相关设置
+
+#### 4.2.2 include/src
+
+##### 4.2.2.1 common
+
+-   **ModelSettings.h/cpp**
+
+创建**ModelSettings**结构体：位置误差增益**positionErrorGain**、步态切换站立时间**phaseTransitionStanceTime**、关节名称向量**jointNames**、六维度接触点（包含力和力矩）link向量**contactNames6DoF**、三维度接触点（包含力）link向量**contactNames3DoF**。
+定义ocs2::legged_robot下的一个函数loadModelSettings，用于**载入task.info中的model_settings的信息**。
+
+-   **Types.h/cpp**
+
+创建一些变量类型如：feet_array_t**四维向量**、contact_flag_t**接触标志**（四维bool类型向量）、vector3_t三维向量、matrix3_t**三维矩阵**、quaternion_t**四元数**。
+
+-   **utils.h/cpp**
+
+在ocs2::legged_robot下的两个函数：**numberOfClosedContacts**，传入**接触标志的引用**，返回**接触的足端数量int类型**。**weightCompensatingInput**，传入**质心模型信息引用**和**接触标志引用**，返回在静止时，由支撑脚**均分**机器人重力，**控制量**的值。
+
+##### 4.2.2.2 constraint
+
+-   **EndEffectorLinearConstraint.h/cpp**
+
+创建类**EndEffectorLinearConstraint**，其中有结构体**Config：包含向量b，矩阵Ax和Ay（向量、矩阵的行数和约束个数有关）**。
+
+**属性**：末端运动学指针**endEffectorKinematicsPtr_**；约束个数**numConstraints\_**;配置参数**config\_**
+
+**方法**：**构造函数**（传入末端运动学指针、约束个数和配置参数，直接通过参数列表**传参**）；
+			**void configure(Config&& config)**传入config，设置新的约束系数；
+			**void configure(const Config& config)**设置新的约束函数（**一般用这个**）；
+			**EndEffectorKinematics<scalar_t>& getEndEffectorKinematics()**返回末端运动学指针；
+			**size_t getNumConstraints(scalar_t time)**获取time时刻约束数量；
+			**vector_t getValue(scalar_t time, const vector_t& state, const vector_t& input, const PreComputation& preComp)**计算约束的值：$A_x*x_{ee}+A_v*v_{ee}+b$
+			**VectorFunctionLinearApproximation getLinearApproximation(scalar_t time, const vector_t& state, const vector_t& input,const PreComputation& preComp)**计算约束的值$f$，对状态的微分$\frac{df}{dx}$矩阵（$n_{constraint},n_{state}$）和对输入（控制量）的微分$\frac{df}{du}$矩阵（$n_{constraint},n_{input}$）。将这些值存在**VectorFunctionLinearApproximation**的实例中返回。
+
+-   **FrictionConeConstraint.h/cpp**
+
+创建类**FrictionConeConstraint**，其中有结构体**Config**：**包含摩擦系数frictionCoefficient，正则化系数frictionCoefficient，狗上机械臂的抓紧力gripperForce，Hessian矩阵对角偏移量。**
+
+**属性**：模式和目标轨迹切换管理器**referenceManagerPtr_**，约束参数**config\_**，接触足端索引**contactPointIndex\_**，质心模型信息**info\_**，世界到支撑面的旋转矩阵$\sideset{^t}{_w}R$ **t_R_w**。
+
+**方法**：**构造函数**设置约束类型为二次、简单传参；
+			**bool isActive(scalar_t time)** 判断time时刻，此足端是否与地面接触，激活摩擦锥约束；
+			**size_t getNumConstraints(scalar_t time)** 获取约束个数，针对单腿，返回1；
+			**vector_t getValue(scalar_t time, const vector_t& state, const vector_t& input, const PreComputation& preComp)** 根据当前状态和控制量计算约束的值，$h=frictionCoefficient * (F_z + gripperForce) - \sqrt{F_x * F_x + F_y * F_y + regularization}$；
+			**VectorFunctionLinearApproximation getLinearApproximation(scalar_t time, const vector_t& state, const vector_t& input,const PreComputation& preComp)** 计算约束的值，约束对状态的微分和对输入的微分；
+			**VectorFunctionQuadraticApproximation getQuadraticApproximation(scalar_t time, const vector_t& state, const vector_t& input, const PreComputation& preComp)** 计算约束的值，约束对状态的微分和对输入的微分，约束对状态、输入、状态输入的二阶导；
+			**void setSurfaceNormalInWorld(const vector3_t& surfaceNormalInWorld)** 设置旋转矩阵；
+			**vector_t coneConstraint(const vector3_t& localForces)** 根据接触力计算摩擦锥；
+			**LocalForceDerivatives computeLocalForceDerivatives(const vector3_t& forcesInBodyFrame)** 返回LocalForceDerivatives结构体：dF_du F_local（局部坐标系下的足地接触力）相对输入（F_world，世界坐标系下的足地接触力)的导数即旋转矩阵；
+			**ConeLocalDerivatives computeConeLocalDerivatives(const vector3_t& localForces)** 返回ConeLocalDerivatives结构体：dCone_dF h相对于F_local的一阶导、d2Cone_dF2 h相对于F_local的二阶导；
+			**ConeDerivatives computeConeConstraintDerivatives(const ConeLocalDerivatives& coneLocalDerivatives, const LocalForceDerivatives& localForceDerivatives)** 返回ConeDerivatives结构体：dCone_du h相对于F_world的一阶导、 d2Cone_du2 h相对于F_world的二阶导；
+			**matrix_t frictionConeInputDerivative(size_t inputDim, const ConeDerivatives& coneDerivatives)**计算h相对输入的一阶导；
+$$
+\begin{bmatrix}
+\frac{dh}{du_1} & \frac{dh}{du_2} & \cdots & \frac{dh}{du_{n_u}}
+\end{bmatrix}
+$$
+​			**matrix_t frictionConeSecondDerivativeInput(size_t inputDim, const ConeDerivatives& coneDerivatives)**计算h相对输入的二阶导；
+$$
+\begin{bmatrix}
+\frac{d^2h}{du_1^2} & \frac{d^2h}{du_2du_1} & \cdots & \frac{d^2h}{du_{n_u}du_1} \\
+\frac{d^2h}{du_1du_2} & \frac{d^2h}{du_2^2} & \cdots & \frac{d^2h}{du_{n_u}du_2} \\
+\vdots & \vdots & \ddots & \vdots \\
+\frac{d^2h}{du_1du_n} & \frac{d^2h}{du_2du_n} & \cdots & \frac{d^2h}{du_{n_u}^2}
+\end{bmatrix}
+$$
+​			**matrix_t frictionConeSecondDerivativeState(size_t stateDim, const ConeDerivatives& coneDerivatives)**计算Cone相对状态的二阶导。理论上均为0，加上偏置为了便于求解。
+$$
+\begin{bmatrix}
+hessianDiagonalShift & 0 & \cdots & 0 \\
+0 & hessianDiagonalShift & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & hessianDiagonalShift
+\end{bmatrix}
+$$
+
+-   **NormalVelocityConstraintCppAd.h&cpp**
+
+**属性**：模式和目标轨迹切换管理器**referenceManagerPtr_**，末端执行器线性约束指针**eeLinearConstraintPtr_**（用于求解约束的值和微分等），接触点索引**contactPointIndex_**。
+
+**方法**：**NormalVelocityConstraintCppAd**：构造函数、简单传参；
+			**isActive**判断足端是否接触；
+			**getValue**借助eeLinearConstraintPtr_计算约束的值；
+			**getLinearApproximation**计算约束对状态和输入的微分。
+
+-   **ZeroForceConstraint.h&cpp**
+
+**属性**：模式和目标轨迹切换管理器**referenceManagerPtr_**，接触点索引**contactPointIndex_**，质心模型信息**info\_**。
+
+**方法**：
+
+##### 4.2.2.3 cost
+
+##### 4.2.2.4 dynamics
+
+##### 4.2.2.5 foot_planner
+
+-   foot_planner.h&cpp：
+
+创建CubicSpline类用于三次样条规划，类中创建结构体Node用于存放端点信息。构造函数中，求解三次多项式的系数，**注意**：先将端点的时间信息进行归一化后进行求解。
+
+```c++
+CubicSpline::CubicSpline(Node start, Node end) {
+  assert(start.time < end.time);
+  t0_ = start.time;
+  t1_ = end.time;
+  dt_ = end.time - start.time;
+
+  scalar_t dp = end.position - start.position;
+  scalar_t dv = end.velocity - start.velocity;
+
+  // 表示三次多项式系数和速度相关的项
+  dc0_ = 0.0;
+  dc1_ = start.velocity;
+  dc2_ = -(3.0 * start.velocity + dv);
+  dc3_ = (2.0 * start.velocity + dv);
+  // 三次多项式系数
+  c0_ = dc0_ * dt_ + start.position;
+  c1_ = dc1_ * dt_;
+  c2_ = dc2_ * dt_ + 3.0 * dp;
+  c3_ = dc3_ * dt_ - 2.0 * dp;
+}
+```
+
+$$
+x(t)=c3\_t_n^3+c2\_t_n^2+c1\_t_n+c0\_,t_n=\frac{t-t_0}{dt}\\
+x'(t)=3c3\_t_n^2\cdot dt+2c2\_t_n\cdot dt+c1\_t_n\cdot dt
+$$
+
+将初始条件带入刚好等于代码中求解的值
+
+
+
+### 2024.01.09 Debug
+
+1.问题1：面足四点摩擦锥约束，如何实现？
+方法：设置支撑点为八个点，一脚各四个。设置约束时，对于每个接触点只设置一个摩擦锥，游脚和支撑脚通过将力合成到单个点，进行约束，简化约束个数。
+
+2.问题2：积分时，函数调用次数达到最大，原因？
+ddp求解器的问题，换成sqp解决。
+
+
+
