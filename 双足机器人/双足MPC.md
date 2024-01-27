@@ -528,3 +528,30 @@ $$
 **后退$0.2m/s$效果：**
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/move_0.2.mp4" preload="none" >
+### 2024.1.25
+
+在一定高度上进行踏步
+
+平地时，质心高度0.988761；baselink高度0.89683174；
+
+方法：通过设置**质心高度为支撑脚上方0.988761的位置**，达到在一定高度进行踏步的目的。
+
+### 2024.1.26
+
+问题：转圈走会在0.4左右位置卡住，yaw不增加
+方法：转速设为0.1会出现上述问题，**增大转速**可解决。
+
+问题：一边转圈，一边走
+方法：在更新机器人欧拉角等状态时，将设置的速度（如x方向0.2，y方向为0，z方向为0）**左乘旋转矩阵**，**将质心坐标系下的速度，转换成世界坐标系下。**
+
+**下坡**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/%E5%A6%82%E4%B8%8B.mp4" preload="none" >
+
+**上坡**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/%E6%96%9C%E5%9D%A1.mp4" preload="none" >
+
+**转圈**
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/%E8%BD%AC%E5%9C%88.mp4" preload="none" >
