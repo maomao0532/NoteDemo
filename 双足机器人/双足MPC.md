@@ -484,14 +484,123 @@ I_{3\times3}/m & I_{3\times3}/m & 0_{3\times3} & 0_{3\times3}
 $$
 其中$I_G$为$\sum W$中body相对于质心，轴为$\sum W$轴的转动惯量矩阵，可使用$I_G=R_zI_bR_z^T$求得，其中，$I_b$为body相对自身固连质心坐标系的转动惯量（定值）。
 
-为将状态空间线性化
-
-
+为将状态空间线性化，将重力加速度$g$也作为状态变量，则$x=[\Theta \ \  p_c\ \ w\ \ \dot{p}_c \ \ g]^T$，$\dot{x}=\hat{A}_cx+\hat{B}_cu$，其中：
+$$
+\hat{A}_c=
+\begin{bmatrix}
+A & [0\ \ 0 \cdots0\ {-1}]^T \\
+0 & 0
+\end{bmatrix},
+\hat{B}_c=
+\begin{bmatrix}
+B \\ 0
+\end{bmatrix}
+$$
 
 ## 3. MPC构建
 
+### 3.1 模型离散化
 
+已知：$\dot{x}=\hat{A}_cx+\hat{B}_cu$，利用前向欧拉公式：
+$$
+\dot{x}(k) \approx \frac{x(k+1)-x(k)}{T}, \text{T为采样时间} \\
+\Rightarrow
+\hat{A}_cx(k)+\hat{B}_cu(k) = \frac{x(k+1)-x(k)}{T} \\
+\Rightarrow
+x(k+1) = (I+T\hat{A}_c)x(k) + T\hat{B}_cu(k) \\
+即 x[i+1] = \hat{A}[i]x[i] + \hat{B}[i]u[i]
+$$
+每次进行模型离散$\hat{A},\hat{B}$都是变化的，因为$\hat{A}$与机器人姿态欧拉角有关，$\hat{B}$与机器人姿态和足端相对质心位置有关。
 
+### 3.2 预测
+
+已知：$\hat{A}[0],\hat{B}[0],x[0],u[0],u[1],...,u[k-1]$，0为当前时刻。
+
+预测：
+$$
+\begin{aligned}
+x[1] &= \hat{A}x[0]+\hat{B}u[0] \\
+x[2] &= \hat{A}^2x[0]+\hat{A}\hat{B}u[0]+\hat{B}u[1] \\
+x[3] &= \hat{A}^3x[0]+\hat{A}^2\hat{B}u[0]+\hat{A}\hat{B}u[1]+\hat{B}u[2] \\
+\vdots \\
+x[k] &= \hat{A}^kx[0]+\hat{A}^{k-1}\hat{B}u[0]+\hat{A}^{k-2}\hat{B}u[1]+\dots + \hat{B}u[k-1]
+\end{aligned}
+$$
+预测时域为$N_p=k$，控制时域为$N_c=k-1$。
+
+写成向量形式：
+$$
+Y=\Phi x[0]+ \Theta U，其中 \\
+Y=
+\begin{bmatrix}
+x_1 \\ x_2 \\ \vdots \\ x_k
+\end{bmatrix},
+\Phi=
+\begin{bmatrix}
+\hat{A} \\ \hat{A}^2 \\ \vdots \\ \hat{A}^k
+\end{bmatrix},
+U=
+\begin{bmatrix}
+u_0 \\ u_1 \\ \vdots \\ u_{k-1}
+\end{bmatrix},
+\Theta=
+\begin{bmatrix}
+\hat{B} & 0 & 0 & \cdots & 0 \\
+\hat{A}\hat{B} & \hat{B} & 0 & \cdots & 0\\
+\hat{A}^2\hat{B} & \hat{A}\hat{B} & \hat{B} & \cdots & 0 \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+\hat{A}^{k-1}\hat{B} & \hat{A}^{k-2}\hat{B} & \hat{A}^{k-3}\hat{B} & \cdots & \hat{B} 
+\end{bmatrix}
+$$
+
+### 3.3 构建优化问题
+
+希望$Y\rightarrow Y_{ref},U\rightarrow 0$，其中$Y_{ref}$是通过步态规划得到的期望轨迹。希望跟踪轨迹，并且控制量最少，构建代价函数：
+$$
+\min (Y-Y_{ref})^TQ(Y-Y_{ref})+U^TRU
+$$
+其中，$Q,R$为权重矩阵。但此时函数中有两个变量$Y$和$U$。通过下面操作进行化简：
+
+令$E=\Phi x[0]-Y_{ref}$，则$Y-Y_{ref}=E+Y-\Phi x[0]=E+\Theta U$，代入代价函数有：
+$$
+\begin{aligned}
+& \ \ \ \ \ (E+\Theta U)^TQ(E+\Theta U)+U^TRU \\
+&= (E^TQ+U^T\Theta^TQ)(E+\Theta U)+U^TRU \\
+&= E^TQE+U^T\Theta^TQE+E^TQ\Theta U+U^T\Theta^TQ\Theta U+U^TRU \\
+&= E^TQE+U^T(\Theta^TQ\Theta+R)+2U^T\Theta^TQE \\
+&\Rightarrow \frac{1}{2}U^THU+U^Tf
+\end{aligned}
+$$
+其中：
+$$
+H=2(\Theta^TQ\Theta+R) \\
+f=2\Theta^TQE=2\Theta^TQ(\Phi x[0]-Y_{ref})
+$$
+补充证明：
+
+- $U^T\Theta^TQE=E^TQ\Theta U$，因为$Q$为对角矩阵，故等式左右互为转置，又左右乘出来的值均为1x1的数，故两者相等。
+- $E^TQE,E=\Phi x[0]-Y_{ref}$，$E$确定，故此项为常数项与$U$无关。
+
+约束条件：
+$$
+\left\{\begin{matrix}
+-\mu F_{iz} \le F_{ix} \le \mu F_{iz} & 摩擦锥约束 \\
+-\mu F_{iz} \le F_{iy} \le \mu F_{iz} \\
+0 < F_{min} \le F_{iz} \le F_{max} & 接触约束\\
+|\tau| \le \tau_{max} & 关节力矩约束
+\end{matrix}\right.
+$$
+最后将上述代价函数，约束，写成矩阵形式，再通过qpOASES去求解控制量：
+$$
+\min_U \frac{1}{2}U^THU+U^Tf
+\\
+\left\{\begin{matrix}
+CU \le d & 不等式约束 \\
+A_{eq} U = b_{eq} & 等式约束
+\end{matrix}\right.
+$$
+
+取求解出$U$的第一组控制量$u[0]=[F_1 \ \ F_2 \ \ M_1 \ \ M_2]$，通过雅可比矩阵将其映射到关节力矩$\tau=J^Tu$进行控制。
 
 
 ## 4. Debug
@@ -555,3 +664,4 @@ $$
 **转圈**
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/%E8%BD%AC%E5%9C%88.mp4" preload="none" >
+
