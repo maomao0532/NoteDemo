@@ -211,6 +211,140 @@ $$
 
 使用得到的关节力矩，关节位置，关节速度，对电机进行力位混合控制。
 
+## 3 权重WBC
+
+### 3.1 任务表现形式
+
+$$
+\left\{\begin{matrix}
+\begin{equation}
+\begin{aligned}
+Ax-b=0 \\
+Dx-f \le 0
+\end{aligned}
+\end{equation}
+\end{matrix}\right.
+$$
+
+其中，优化变量$x=[q'' \ \ F_r \ \ \tau]$，分别为广义坐标加速度（6+12在**局部坐标系**中）、足端作用反力（6+6）、关节力矩（12）。
+
+### 3.2 任务列表
+
+#### 3.2.1 动力学等式
+
+$$
+M\ddot{q}+C\dot{q}+g=
+\begin{bmatrix}
+0 \\
+\tau
+\end{bmatrix}
++ J_c^{T} F_r
+$$
+
+写成任务形式为：
+$$
+A=[M \ \  -J_c^{T} \ \ -s^T];
+J_c=\begin{bmatrix}
+J_{left} \\
+J_{right}
+\end{bmatrix};
+s = [0_{12\times6} \ \ \ I_{12\times12}] \\
+b=-C\dot{q}-g
+$$
+上述变量可通过pinocchio和当前状态计算得到。
+
+#### 3.2.2 关节力矩不等式
+
+$$
+-\tau_{max} \le \tau \le \tau_{max}
+$$
+
+写成任务形式为：
+$$
+D = 
+\begin{bmatrix}
+0_{18\times12} & 0_{12\times12} & I_{12\times12} \\
+0_{18\times12} & 0_{12\times12} & -I_{12\times12}                          
+\end{bmatrix},
+f=\begin{bmatrix}
+\tau_{max} \\
+\tau_{max}                          
+\end{bmatrix}
+$$
+相关变量由wbc初始化时给出。
+
+#### 3.2.3 接触点加速度等式
+
+$$
+a=(J\dot{q})'=\dot{J}\dot{q}+J\ddot{q}=0
+$$
+
+写成任务形式为：
+$$
+A=[J\ \ 0\ \ 0];b=-\dot{J}\dot{q}
+$$
+$J$为接触脚的雅可比矩阵，其他变量可通过pinocchio计算。
+
+#### 3.2.4 摩擦锥
+
+**等式：游脚接触力为0**
+$$
+A=[0 \ \ I \ \ 0];b=0
+$$
+$I$为游脚所对应的列。
+
+**支撑脚：满足摩擦锥**
+$$
+D=[0\ \ f_{ri} \ \ 0];f=0
+$$
+其中$f_{ri}$对应接触的脚：
+$$
+f_{ri}=
+\begin{bmatrix}
+0 & 0 & -1 \\
+1 & 0 & -\mu \\
+-1 & 0 & -\mu \\
+0 & 1 & -\mu \\
+0 & -1 & -\mu \\
+\end{bmatrix}
+$$
+
+#### 3.2.5 浮动基线加速度等式
+
+$$
+A=[R \ \ 0];b=a_{base}+K_perr_{pos}+K_derr_{vel}
+$$
+
+其中$R$为浮动基的旋转矩阵，左乘$R$可将局部坐标系转换成世界坐标系。
+
+期望的位置和速度可使用MPC优化的结果。
+
+#### 3.2.6 浮动基角加速度等式
+
+$$
+A=[R \ \ 0];b=a_{base}+K_perr_{pos}+K_derr_{vel}
+$$
+
+与线加速度类似。
+
+#### 3.2.7 游脚等式
+
+$$
+a_{swing} = \dot{J}\dot{q}+J\ddot{q} = a_{swing}+K_perr_{swing}+K_derr_{swing}
+$$
+
+写成任务形式：
+$$
+A=[J \ \ 0\ \ 0];b=a_{swing}+K_perr_{swing}+K_derr_{swing}-\dot{J}\dot{q}
+$$
+游脚的位置和速度通过规划获得。
+
+#### 3.2.8 接触力等式
+
+优化变量中的接触力$F_r$等于MPC的求解结果，任务形式：
+$$
+A=[0 \ \ I \ \ 0],b=F_{rdes}
+$$
 
 
 

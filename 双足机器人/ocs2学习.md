@@ -553,9 +553,27 @@ $$
 
 将初始条件带入刚好等于代码中求解的值
 
+## 5. ocs2+WBC 双足
 
+### 5.1 节点配置
 
-### 2024.01.09 Debug
+![image-20240306151138732](https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/image-20240306151138732.png)
+
+-   /gazebo节点发送的/legged_robot/xx信息供rviz读取可视化；/legged_robot_mpc_observation提供MPC输入。
+-   /legged_robot_target发送/gait_type步态信息；/cmd_vel_filtered速度指令缓存；/legged_robot_mpc_target求解MPC结果。
+-   /move_base_simple目标位置输入；/cmd_vel目标速度；
+
+### 5.2 文件架构
+
+-   hit_robot_ele_control
+    -   legged_common
+        -   hardware_interface
+            -   ContactSensorInterface.h---接触传感器硬件接口
+            -   HybridJointInterface.h--------自定义力位混合控制器
+        -   output_color.h------------------------
+    -   
+
+## 2024.01.09 Debug
 
 1.问题1：面足四点摩擦锥约束，如何实现？
 方法：设置支撑点为八个点，一脚各四个。设置约束时，对于每个接触点只设置一个摩擦锥，游脚和支撑脚通过将力合成到单个点，进行约束，简化约束个数。

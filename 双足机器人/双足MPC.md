@@ -1,4 +1,4 @@
-# 双足MPC 
+# 双足MPC
 
 ## 1. 正逆运动学推导
 
@@ -664,3 +664,4 @@ $$
 **转圈**
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/%E8%BD%AC%E5%9C%88.mp4" preload="none" >
+
