@@ -211,6 +211,10 @@ $$
 
 使用得到的关节力矩，关节位置，关节速度，对电机进行力位混合控制。
 
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2BMITWBC%E8%B8%8F%E6%AD%A5.mp4" preload="none" >
+
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2BWBC%E7%AB%99%E7%AB%8B.mp4" preload="none" >
+
 ## 3 权重WBC
 
 ### 3.1 任务表现形式
@@ -346,10 +350,9 @@ $$
 A=[0 \ \ I \ \ 0],b=F_{rdes}
 $$
 
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2B%E6%9D%83%E9%87%8DWBC%E8%B8%8F%E6%AD%A5.mp4" preload="none" >
 
-
-
-
+<video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2B%E6%9D%83%E9%87%8DWBC%E8%A1%8C%E8%B5%B0.mp4" preload="none" >
 
 
 
