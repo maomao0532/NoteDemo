@@ -353,8 +353,9 @@ $$
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2B%E6%9D%83%E9%87%8DWBC%E8%B8%8F%E6%AD%A5.mp4" preload="none" >
 
 <video id="video" controls="" src="https://typora-picture-01.oss-cn-shenzhen.aliyuncs.com/image/MPC%2B%E6%9D%83%E9%87%8DWBC%E8%A1%8C%E8%B5%B0.mp4" preload="none" >
+## 4. 缓冲WBC
 
-
+尝试：将MPC的权重也进行缓慢变化；缓冲MPC+缓冲WBC；比较MPC+WBC的足底反力和稳定性。
 
 
 

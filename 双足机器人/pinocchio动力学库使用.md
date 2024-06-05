@@ -53,3 +53,9 @@ pinocchio::urdf::buildModel(urdf_filename, pinocchio::JointModelFreeFlyer(), _mo
 
 如此，构建的模型广义坐标由以下构成：浮动基位置xyz，浮动基姿态xyzw，关节角度q；
 
+
+
+# Matlab机器人工具箱使用
+
+
+
